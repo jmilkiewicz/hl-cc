@@ -1,4 +1,7 @@
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -14,7 +17,8 @@ import static org.hamcrest.Matchers.*;
 public class InterviewTest {
 
     private static Stream<Person> interviewTask(List<String> sourceUserList) {
-        final Stream<Person> personStream = sourceUserList.stream()
+
+        return sourceUserList.stream()
                 .flatMap(
                         l -> Arrays.stream(l.split(" "))
                                 .map(lp -> {
@@ -22,31 +26,25 @@ public class InterviewTest {
                                     return new Person(split[0], Integer.valueOf(split[1]));
                                 })
                 );
-
-        return personStream;
     }
 
 
     private record DuplicatesResult(String name, Integer occurences) {
     }
 
-    ;
-
     private static List<DuplicatesResult> min3Duplicates(List<String> sourceUserList) {
         final Stream<Person> personStream = interviewTask(sourceUserList);
 
         final Map<String, List<Person>> groupedByName = personStream.collect(Collectors.groupingBy(p -> p.name));
 
-        final List<DuplicatesResult> result = groupedByName.entrySet()
+
+        return groupedByName.entrySet()
                 .stream()
                 .filter(pair -> pair.getValue()
                         .size() >= 3)
                 .map(pair -> new DuplicatesResult(pair.getKey(), pair.getValue()
                         .size()))
                 .toList();
-
-
-        return result;
     }
 
 
@@ -102,10 +100,14 @@ public class InterviewTest {
     void canCreatePerson() {
         final Person adam = new Person("Adam", 22);
 
+
         assertThat(adam.name, is("Adam"));
         assertThat(adam.age, is(22));
         assertThat(adam.id, notNullValue());
 
+        final Person john = new Person("Adam", 22);
+
+        assertThat(john.id, not(equalTo(adam.id)));
     }
 
 
@@ -130,6 +132,33 @@ public class InterviewTest {
 
     }
 
+
+    public static class PersonNameAgeMatcher extends TypeSafeMatcher<Person> {
+
+        private final Matcher<Integer> ageMatcher;
+        private final Matcher<String> nameMatcher;
+
+        public PersonNameAgeMatcher(Person expected) {
+            nameMatcher = is(expected.name);
+            ageMatcher = is(expected.age);
+        }
+
+        @Override
+        protected boolean matchesSafely(Person s) {
+            return ageMatcher.matches(s.age) && nameMatcher.matches(s.name);
+        }
+
+        @Override
+        public void describeTo(Description description) {
+
+            description.appendText("{name ")
+                    .appendDescriptionOf(nameMatcher)
+                    .appendText(", age ")
+                    .appendDescriptionOf(ageMatcher)
+            .appendText("}");
+        }
+    }
+
     @Test
     void canParseToPersons() {
 
@@ -141,11 +170,10 @@ public class InterviewTest {
 
         //Hamcrest hasProperty does not work for records
         assertThat(persons, containsInAnyOrder(
-                        both(hasProperty("name", is("KAROLINA"))).and(hasProperty("age", is(22))),
-                        both(hasProperty("name", is("ANNA"))).and(hasProperty("age", is(32))),
-                        both(hasProperty("name", is("KAROLINA"))).and(hasProperty("age", is(26))),
-                        both(hasProperty("name", is("ZUZIA"))).and(hasProperty("age", is(35)))
-
+                        new PersonNameAgeMatcher(Person.empty.withName("KAROLINA").withAge(22)),
+                        new PersonNameAgeMatcher(Person.empty.withName("ANNA").withAge(32)),
+                        new PersonNameAgeMatcher(Person.empty.withName("KAROLINA").withAge(26)),
+                        new PersonNameAgeMatcher(Person.empty.withName("ZUZIA").withAge(35))
                 )
         );
 
